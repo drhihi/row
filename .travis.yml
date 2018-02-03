@@ -1,0 +1,9 @@
+language: go
+go:
+  - 1.9
+
+before_install:
+  - go get -v ./...
+
+script:
+- go build ./... && go test ./...
