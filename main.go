@@ -1,20 +1,19 @@
 package main
 
 import (
-	"net/http"
-	"log"
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 )
-
-func indexHandler(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("the reminder of words"))
-}
 
 func main() {
 
-	myRouter := mux.NewRouter()
-	myRouter.HandleFunc("/", indexHandler).Methods("GET")
+	router := gin.Default()
+	v1 := router.Group("/api/v1")
+	{
+		v1.GET("/", fetchAllUser)
+		v1.GET("/login", loginUser)
+		v1.POST("/register", registerUser)
+	}
 
-	log.Fatal(http.ListenAndServe(":8080", myRouter))
+	router.Run()
+
 }
