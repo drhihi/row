@@ -13,7 +13,7 @@ type (
 		ID       uint   `json:"id" gorm:"primary_key"`
 		Email    string `json:"email" gorm:"size:100; unique; not null" form:"email"`
 		Password string `json:"password" gorm:"size:255; not null" form:"password"`
-		Name string `json:"name" gorm:"size:255"`
+		Name     string `json:"name" gorm:"size:255"`
 	}
 
 	Users []User
@@ -96,7 +96,7 @@ func loginUser(c *gin.Context) {
 			gin.H{
 				"status":  http.StatusNonAuthoritativeInfo,
 				"message": "the password is incorrect!",
-				"err": err,
+				"err":     err,
 			},
 		)
 		return
