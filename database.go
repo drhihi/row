@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/garyburd/redigo/redis"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
-	"github.com/garyburd/redigo/redis"
 	"os"
 )
 
@@ -23,7 +23,7 @@ func init() {
 
 }
 
-func joinCR(){
+func joinCR() {
 	cr, err = redis.DialURL(os.Getenv("REDIS_URL"))
 	PanicOnErr(err)
 }

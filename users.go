@@ -113,7 +113,7 @@ func loginUser(c *gin.Context) {
 		gin.H{
 			"status": http.StatusOK,
 			"data":   user,
-			"cr": result,
+			"cr":     result,
 		},
 	)
 
