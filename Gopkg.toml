@@ -24,6 +24,11 @@
 #   go-tests = true
 #   unused-packages = true
 
+[metadata.heroku]
+  root-package = "github.com/drhihi/vocaburise-api"
+  go-version = "go1.9.2"
+  install = ["./vendor/..."]
+
 
 [[constraint]]
   name = "github.com/garyburd/redigo"
