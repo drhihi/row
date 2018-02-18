@@ -24,6 +24,10 @@
 #   go-tests = true
 #   unused-packages = true
 
+[metadata.heroku]
+    root-package = "vocaburise"
+    go-version = 1.10
+    install = ["./..."]
 
 [[constraint]]
   name = "github.com/gin-gonic/gin"
