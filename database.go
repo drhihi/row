@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/garyburd/redigo/redis"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"os"
@@ -9,7 +8,6 @@ import (
 
 var (
 	db *gorm.DB
-	cr redis.Conn
 )
 
 func init() {
@@ -21,13 +19,4 @@ func init() {
 
 	db.AutoMigrate(&User{})
 
-}
-
-func joinCR() {
-	cr, err = redis.DialURL(os.Getenv("REDIS_URL"))
-	PanicOnErr(err)
-}
-
-func closeCR() {
-	cr.Close()
 }

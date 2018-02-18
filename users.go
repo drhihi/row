@@ -105,15 +105,12 @@ func loginUser(c *gin.Context) {
 	pw, err := generateFromPassword(strconv.Itoa(int(user.ID)))
 	PanicOnErr(err)
 	c.SetCookie("auth", pw, 30, "", "", true, false)
-	cr.Do("SET", pw, user.ID, "EX", 30)
-	result, err := cr.Do("CLIENT LIST")
 
 	c.JSON(
 		http.StatusOK,
 		gin.H{
 			"status": http.StatusOK,
 			"data":   user,
-			"cr":     result,
 		},
 	)
 
