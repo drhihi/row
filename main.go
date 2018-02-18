@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"os"
 )
 
 func main() {
@@ -14,6 +15,12 @@ func main() {
 		v1.POST("/register", registerUser)
 	}
 
-	router.Run()
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		port = "8000"
+	}
+
+	router.Run(":" + port)
 
 }
