@@ -6,9 +6,6 @@ import (
 
 func main() {
 
-	//joinCR()
-	//defer closeCR()
-
 	router := gin.Default()
 	v1 := router.Group("/api/v1")
 	{
