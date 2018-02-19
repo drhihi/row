@@ -1,8 +1,0 @@
-{
-	"ImportPath": "vocaburise",
-	"GoVersion": "go1.10",
-	"GodepVersion": "v80",
-	"Packages": [
-		"./..."
-	],
-}
