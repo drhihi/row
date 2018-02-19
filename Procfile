@@ -1,1 +1,1 @@
-web: vocaburise
+web: vocaburise-api
