@@ -25,7 +25,7 @@
 #   unused-packages = true
 
 [metadata.heroku]
-  name = "vocaburise"
+  root-package = "vocaburise"
   go-version = "1.10"
   install = [ "./..." ]
 
