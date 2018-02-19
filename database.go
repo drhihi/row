@@ -13,6 +13,9 @@ var (
 func init() {
 
 	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = "user=postgres dbname=vocaburise sslmode=disable"
+	}
 	db, err = gorm.Open("postgres", connStr)
 
 	PanicOnErr(err)
