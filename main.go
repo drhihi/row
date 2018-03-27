@@ -13,6 +13,7 @@ func main() {
 		v1.GET("/", fetchAllUser)
 		v1.GET("/login", loginUser)
 		v1.POST("/register", registerUser)
+		v1.GET("/logout", authorized, loginOutUser)
 	}
 
 	port := os.Getenv("PORT")
