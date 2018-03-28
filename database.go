@@ -20,6 +20,6 @@ func init() {
 
 	PanicOnErr(err)
 
-	db.AutoMigrate(&User{})
+	db.AutoMigrate(&User{}, &Category{}, &Word{})
 
 }

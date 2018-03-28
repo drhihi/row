@@ -17,16 +17,18 @@ const (
 
 type (
 	User struct {
-		ID       uint   `json:"id" gorm:"primary_key"`
-		Email    string `json:"email" gorm:"size:100; unique; not null" form:"email"`
-		Password string `json:"password" gorm:"size:255; not null" form:"password"`
-		Name     string `json:"name" gorm:"size:255"`
+		ID        uint   `json:"id" gorm:"primary_key"`
+		Email     string `json:"email" gorm:"size:100; unique; not null" form:"email"`
+		Password  string `json:"password" gorm:"size:255; not null" form:"password"`
+		Name      string `json:"name" gorm:"size:255"`
+		RoleAdmin bool   `json:"admin"`
 	}
 
 	Users []User
 
 	userClaims struct {
-		UserId uint `json:"id"`
+		UserId    uint `json:"id"`
+		RoleAdmin bool `json:"admin"`
 		jwt.StandardClaims
 	}
 )
@@ -73,7 +75,7 @@ func loginUser(c *gin.Context) {
 			http.StatusBadRequest,
 			gin.H{
 				"status":  http.StatusBadRequest,
-				"message": "the data is incorrect #1",
+				"message": "the data is incorrect #user",
 			},
 		)
 		return
@@ -104,7 +106,7 @@ func loginUser(c *gin.Context) {
 		return
 	}
 
-	token, err := createJwtToken(user.ID)
+	token, err := createJwtToken(&user)
 	PanicOnErr(err)
 	c.Header("Authorization", token)
 
@@ -145,7 +147,7 @@ func registerUser(c *gin.Context) {
 		return
 	}
 
-	token, err := createJwtToken(user.ID)
+	token, err := createJwtToken(&user)
 	PanicOnErr(err)
 	c.Header("Authorization", token)
 
@@ -194,10 +196,11 @@ func loginOutUser(c *gin.Context) {
 
 }
 
-func createJwtToken(id uint) (string, error) {
+func createJwtToken(u *User) (string, error) {
 
 	claims := userClaims{
-		id,
+		u.ID,
+		u.RoleAdmin,
 		jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(token_time_delay).Unix(),
 		},
@@ -233,5 +236,28 @@ func authorized(c *gin.Context) {
 		claims := token.Claims.(*userClaims)
 		c.Set("userId", claims.UserId)
 	}
+
+}
+
+func checkAdmin(c *gin.Context) {
+
+	tokenString := c.GetHeader("Authorization")
+
+	token, _ := jwt.ParseWithClaims(
+		tokenString,
+		&userClaims{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(secretKey), nil
+		},
+	)
+
+	if token.Valid {
+		claims := token.Claims.(*userClaims)
+		if claims.RoleAdmin {
+			return
+		}
+	}
+
+	c.Abort()
 
 }

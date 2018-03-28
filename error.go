@@ -6,6 +6,6 @@ var err error
 
 func PanicOnErr(err error) {
 	if err != nil {
-		log.Panicln(err)
+		log.Println(err)
 	}
 }

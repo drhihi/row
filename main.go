@@ -16,6 +16,22 @@ func main() {
 		v1.GET("/logout", authorized, loginOutUser)
 	}
 
+	categoryGroup := v1.Group("/category")
+	{
+		categoryGroup.GET("/", fetchAllCategory)
+		categoryGroup.POST("/", checkAdmin, addCategory)
+		categoryGroup.PATCH("/", checkAdmin, patchCategory)
+		categoryGroup.DELETE("/", checkAdmin, deleteCategory)
+	}
+
+	wordGroup := v1.Group("/word")
+	{
+		wordGroup.GET("/", fetchWords)
+		wordGroup.POST("/", checkAdmin, addWord)
+		wordGroup.PATCH("/", checkAdmin, patchWord)
+		wordGroup.DELETE("/", checkAdmin, deleteWord)
+	}
+
 	port := os.Getenv("PORT")
 
 	if port == "" {
