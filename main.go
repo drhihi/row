@@ -11,9 +11,9 @@ func main() {
 	v1 := router.Group("/api/v1")
 	{
 		v1.GET("/", fetchAllUser)
-		v1.GET("/login", loginUser)
+		v1.GET("/login", logInUser)
 		v1.POST("/register", registerUser)
-		v1.GET("/logout", authorized, loginOutUser)
+		v1.GET("/logout", authorized, logOutUser)
 	}
 
 	categoryGroup := v1.Group("/category")

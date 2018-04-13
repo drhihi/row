@@ -1,7 +1,7 @@
 package main
 
 import (
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
@@ -66,7 +66,7 @@ func fetchAllUser(c *gin.Context) {
 
 }
 
-func loginUser(c *gin.Context) {
+func logInUser(c *gin.Context) {
 	var user User
 
 	if err = c.BindQuery(&user); err != nil {
@@ -166,7 +166,7 @@ func registerUser(c *gin.Context) {
 	)
 }
 
-func loginOutUser(c *gin.Context) {
+func logOutUser(c *gin.Context) {
 
 	c.Header("Authorization", "")
 
@@ -243,7 +243,7 @@ func checkAdmin(c *gin.Context) {
 
 	tokenString := c.GetHeader("Authorization")
 
-	token, _ := jwt.ParseWithClaims(
+	token, ok := jwt.ParseWithClaims(
 		tokenString,
 		&userClaims{},
 		func(token *jwt.Token) (interface{}, error) {
@@ -251,13 +251,20 @@ func checkAdmin(c *gin.Context) {
 		},
 	)
 
-	if token.Valid {
-		claims := token.Claims.(*userClaims)
-		if claims.RoleAdmin {
-			return
-		}
+	if ok != nil || !token.Valid {
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"status":  http.StatusUnauthorized,
+				"message": "Invalid token",
+			},
+		)
+		c.Abort()
 	}
 
-	c.Abort()
+	claims := token.Claims.(*userClaims)
+	if claims.RoleAdmin {
+		return
+	}
 
 }
