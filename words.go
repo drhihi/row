@@ -4,15 +4,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"net/http"
+	"time"
+	"strconv"
 )
 
 type (
 	Word struct {
-		ID         uint     `json:"id" gorm:"primary_key"`
-		Name       string   `json:"name" gorm:"size:255; unique; not null"`
-		NameEng    string   `json:"name_eng" gorm:"size:255; unique; not null"`
-		Category   Category `json:"category" gorm:"auto_preload"`
-		CategoryID uint
+		ID          uint       `json:"id" gorm:"primary_key"`
+		Word        string     `json:"word" gorm:"size:255; unique; not null" binding:"required"`
+		Translation string     `json:"translation" gorm:"size:255; unique; not null" binding:"required"`
+		CategoryID  uint       `json:"category_id" gorm:"not null" binding:"required"`
+		UserID      uint       `json:"user_id" gorm:"not null" binding:"required"`
+		DueDate     *time.Time `json:"due_date"`
 	}
 
 	Words []Word
@@ -29,20 +32,28 @@ func (w *Word) BeforeCreate(scope *gorm.Scope) error {
 
 func fetchWords(c *gin.Context) {
 
-	var words Words
-
-	if id_category, ok := c.Get("id_category"); ok && id_category != nil {
-		id, _ := id_category.(uint)
-		db.Where(
-			&Word{
-				Category: Category{
-					ID: id,
-				},
+	idCategory := c.Query("id_category")
+	id, ok := strconv.Atoi(idCategory)
+	if ok != nil || len(idCategory) == 0 {
+		c.JSON(
+			http.StatusBadRequest,
+			gin.H{
+				"status":  http.StatusBadRequest,
+				"message": "Incorrect URL - category id not specified.",
 			},
-		).Find(&words)
-	} else {
-		db.Find(&words)
+		)
+		return
 	}
+
+	var words Words
+	userId := ParseUserIdFromToken(c)
+
+	db.Where(
+		&Word{
+			CategoryID: uint(id),
+			UserID:     userId,
+		},
+	).Find(&words)
 
 	c.JSON(
 		http.StatusOK,
@@ -105,12 +116,14 @@ func patchWord(c *gin.Context) {
 		return
 	}
 
-	if db.Model(&word).Updates(map[string]interface{}{"name": word.Name, "name_eng": word.NameEng}).RecordNotFound() {
+	abortIfWordNotExists(c)
+
+	if db.Model(&word).Updates(map[string]interface{}{"word": word.Word, "translation": word.Translation}).RecordNotFound() {
 		c.JSON(
 			http.StatusNotFound,
 			gin.H{
 				"status":  http.StatusNotFound,
-				"message": "no category found!",
+				"message": "Update failed",
 			},
 		)
 		return
@@ -141,6 +154,8 @@ func deleteWord(c *gin.Context) {
 		return
 	}
 
+	abortIfWordNotExists(c)
+
 	if db.Delete(&word).RecordNotFound() {
 		c.JSON(
 			http.StatusNotFound,
@@ -160,4 +175,24 @@ func deleteWord(c *gin.Context) {
 		},
 	)
 
+}
+
+func abortIfWordNotExists(c *gin.Context) {
+	var word Word
+	userId := ParseUserIdFromToken(c)
+	existingWord := db.Where(
+		&Word{
+			UserID: userId,
+		},
+	).First(&word)
+	if existingWord == nil {
+		c.JSON(
+			http.StatusNotFound,
+			gin.H{
+				"status":  http.StatusNotFound,
+				"message": "Word does not exist.",
+			},
+		)
+		c.Abort()
+	}
 }

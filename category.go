@@ -8,8 +8,9 @@ import (
 
 type (
 	Category struct {
-		ID   uint   `json:"id" gorm:"primary_key"`
-		Name string `json:"name" gorm:"size:255; unique; not null"`
+		ID     uint   `json:"id" gorm:"primary_key"`
+		Name   string `json:"name" gorm:"size:255; unique; not null" binding:"required"`
+		UserID uint   `json:"user_id" gorm:"not null" binding:"required"`
 	}
 
 	Categories []Category
@@ -24,10 +25,15 @@ func (c *Category) BeforeCreate(scope *gorm.Scope) error {
 	return nil
 }
 
-func fetchAllCategory(c *gin.Context) {
+func fetchAllCategories(c *gin.Context) {
 	var categories Categories
 
-	db.Find(&categories)
+	userId := ParseUserIdFromToken(c)
+	db.Where(
+		&Category{
+			UserID: userId,
+		},
+	).Find(&categories)
 
 	c.JSON(
 		http.StatusOK,
@@ -49,7 +55,7 @@ func addCategory(c *gin.Context) {
 			http.StatusBadRequest,
 			gin.H{
 				"status":  http.StatusBadRequest,
-				"message": "the data is incorrect",
+				"message": "the data is incorrect: " + err.Error(),
 			},
 		)
 		return
@@ -90,6 +96,8 @@ func patchCategory(c *gin.Context) {
 		return
 	}
 
+	abortIfCategoryNotExists(c)
+
 	if db.Model(&category).Update("name", category.Name).RecordNotFound() {
 		c.JSON(
 			http.StatusNotFound,
@@ -126,6 +134,8 @@ func deleteCategory(c *gin.Context) {
 		return
 	}
 
+	abortIfCategoryNotExists(c)
+
 	if db.Delete(&category).RecordNotFound() {
 		c.JSON(
 			http.StatusNotFound,
@@ -145,4 +155,24 @@ func deleteCategory(c *gin.Context) {
 		},
 	)
 
+}
+
+func abortIfCategoryNotExists(c *gin.Context) {
+	var category Category
+	userId := ParseUserIdFromToken(c)
+	existingCategory := db.Where(
+		&Category{
+			UserID: userId,
+		},
+	).First(&category)
+	if existingCategory == nil {
+		c.JSON(
+			http.StatusNotFound,
+			gin.H{
+				"status":  http.StatusNotFound,
+				"message": "Category does not exist.",
+			},
+		)
+		c.Abort()
+	}
 }

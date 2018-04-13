@@ -18,9 +18,9 @@ const (
 type (
 	User struct {
 		ID        uint   `json:"id" gorm:"primary_key"`
-		Email     string `json:"email" gorm:"size:100; unique; not null" form:"email"`
-		Password  string `json:"password" gorm:"size:255; not null" form:"password"`
-		Name      string `json:"name" gorm:"size:255"`
+		Email     string `json:"email" gorm:"size:100; unique; not null" form:"email" binding:"required"`
+		Password  string `json:"password" gorm:"size:255; not null" form:"password" binding:"required"`
+		Name      string `json:"name" gorm:"size:255; not null" binding:"required"`
 		RoleAdmin bool   `json:"admin"`
 	}
 
@@ -267,4 +267,30 @@ func checkAdmin(c *gin.Context) {
 		return
 	}
 
+}
+
+func ParseUserIdFromToken(c *gin.Context) uint {
+	tokenString := c.GetHeader("Authorization")
+
+	token, ok := jwt.ParseWithClaims(
+		tokenString,
+		&userClaims{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(secretKey), nil
+		},
+	)
+
+	if ok != nil || !token.Valid {
+		c.JSON(
+			http.StatusUnauthorized,
+			gin.H{
+				"status":  http.StatusUnauthorized,
+				"message": "Invalid token",
+			},
+		)
+		c.Abort()
+	}
+
+	claims := token.Claims.(*userClaims)
+	return claims.UserId
 }

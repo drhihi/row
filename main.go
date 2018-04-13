@@ -9,27 +9,29 @@ func main() {
 
 	router := gin.Default()
 	v1 := router.Group("/api/v1")
+
+	usersGroup := v1.Group("/users")
 	{
-		v1.GET("/", fetchAllUser)
-		v1.GET("/login", logInUser)
-		v1.POST("/register", registerUser)
-		v1.GET("/logout", authorized, logOutUser)
+		usersGroup.GET("/", checkAdmin, fetchAllUser)
+		usersGroup.POST("/register", registerUser)
+		usersGroup.GET("/login", logInUser)
+		usersGroup.GET("/logout", authorized, logOutUser)
 	}
 
-	categoryGroup := v1.Group("/category")
+	categoryGroup := v1.Group("/categories")
 	{
-		categoryGroup.GET("/", fetchAllCategory)
-		categoryGroup.POST("/", checkAdmin, addCategory)
-		categoryGroup.PATCH("/", checkAdmin, patchCategory)
-		categoryGroup.DELETE("/", checkAdmin, deleteCategory)
+		categoryGroup.GET("/", fetchAllCategories)
+		categoryGroup.POST("/", authorized, addCategory)
+		categoryGroup.PATCH("/", authorized, patchCategory)
+		categoryGroup.DELETE("/", authorized, deleteCategory)
 	}
 
-	wordGroup := v1.Group("/word")
+	wordGroup := v1.Group("/words")
 	{
 		wordGroup.GET("/", fetchWords)
-		wordGroup.POST("/", checkAdmin, addWord)
-		wordGroup.PATCH("/", checkAdmin, patchWord)
-		wordGroup.DELETE("/", checkAdmin, deleteWord)
+		wordGroup.POST("/", authorized, addWord)
+		wordGroup.PATCH("/", authorized, patchWord)
+		wordGroup.DELETE("/", authorized, deleteWord)
 	}
 
 	port := os.Getenv("PORT")
