@@ -11,8 +11,8 @@ import (
 type (
 	Word struct {
 		ID          uint       `json:"id" gorm:"primary_key"`
-		Word        string     `json:"word" gorm:"size:255; unique; not null" binding:"required"`
-		Translation string     `json:"translation" gorm:"size:255; unique; not null" binding:"required"`
+		Word        string     `json:"word" gorm:"size:255; not null" binding:"required"`
+		Translation string     `json:"translation" gorm:"size:255; not null" binding:"required"`
 		CategoryID  uint       `json:"category_id" gorm:"not null" binding:"required"`
 		UserID      uint       `json:"user_id" gorm:"not null" binding:"required"`
 		DueDate     *time.Time `json:"due_date"`
@@ -75,7 +75,7 @@ func addWord(c *gin.Context) {
 			http.StatusBadRequest,
 			gin.H{
 				"status":  http.StatusBadRequest,
-				"message": "the data is incorrect",
+				"message": "the data is incorrect: " + err.Error(),
 			},
 		)
 		return

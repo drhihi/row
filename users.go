@@ -20,7 +20,7 @@ type (
 		ID        uint   `json:"id" gorm:"primary_key"`
 		Email     string `json:"email" gorm:"size:100; unique; not null" form:"email" binding:"required"`
 		Password  string `json:"password" gorm:"size:255; not null" form:"password" binding:"required"`
-		Name      string `json:"name" gorm:"size:255; not null" binding:"required"`
+		Name      string `json:"name" gorm:"size:255"`
 		RoleAdmin bool   `json:"admin"`
 	}
 
