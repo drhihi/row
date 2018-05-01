@@ -9,8 +9,9 @@ import (
 type (
 	Category struct {
 		ID     uint   `json:"id" gorm:"primary_key"`
-		Name   string `json:"name" gorm:"size:255; unique; not null" binding:"required"`
-		UserID uint   `json:"user_id" gorm:"not null" binding:"required"`
+		Name   string `json:"name" gorm:"size:255; not null" binding:"required"`
+		UserID uint   `gorm:"index"`
+		Words  Words
 	}
 
 	Categories []Category
@@ -27,14 +28,7 @@ func (c *Category) BeforeCreate(scope *gorm.Scope) error {
 
 func fetchAllCategories(c *gin.Context) {
 	var categories Categories
-
-	userId := ParseUserIdFromToken(c)
-	db.Where(
-		&Category{
-			UserID: userId,
-		},
-	).Find(&categories)
-
+	db.Model(&User{ID: getUserId(c)}).Related(&categories)
 	c.JSON(
 		http.StatusOK,
 		gin.H{
@@ -42,14 +36,11 @@ func fetchAllCategories(c *gin.Context) {
 			"data":   categories,
 		},
 	)
-
 }
 
 func addCategory(c *gin.Context) {
-
 	var category Category
-
-	if err = c.ShouldBindJSON(&category); err != nil {
+	if err := c.ShouldBindJSON(&category); err != nil {
 		PanicOnErr(err)
 		c.JSON(
 			http.StatusBadRequest,
@@ -60,8 +51,12 @@ func addCategory(c *gin.Context) {
 		)
 		return
 	}
+	if err := db.
+		Model(&User{ID: getUserId(c)}).
+		Association("Categories").
+		Append(&category).
+		Error; err != nil {
 
-	if err = db.Create(&category).Error; err != nil {
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{
@@ -83,8 +78,7 @@ func addCategory(c *gin.Context) {
 
 func patchCategory(c *gin.Context) {
 	var category Category
-
-	if err = c.ShouldBindJSON(&category); err != nil {
+	if err := c.ShouldBindJSON(&category); err != nil {
 		PanicOnErr(err)
 		c.JSON(
 			http.StatusBadRequest,
@@ -96,9 +90,10 @@ func patchCategory(c *gin.Context) {
 		return
 	}
 
-	abortIfCategoryNotExists(c)
-
-	if db.Model(&category).Update("name", category.Name).RecordNotFound() {
+	if db.Model(&User{ID: getUserId(c)}).
+		Model(&category).
+		Update("name", category.Name).
+		RecordNotFound() {
 		c.JSON(
 			http.StatusNotFound,
 			gin.H{
@@ -116,13 +111,11 @@ func patchCategory(c *gin.Context) {
 			"data":   category,
 		},
 	)
-
 }
 
 func deleteCategory(c *gin.Context) {
 	var category Category
-
-	if err = c.BindQuery(&category); err != nil {
+	if err := c.ShouldBindJSON(&category); err != nil {
 		PanicOnErr(err)
 		c.JSON(
 			http.StatusBadRequest,
@@ -134,9 +127,10 @@ func deleteCategory(c *gin.Context) {
 		return
 	}
 
-	abortIfCategoryNotExists(c)
-
-	if db.Delete(&category).RecordNotFound() {
+	if db.
+		Model(&User{ID: getUserId(c)}).
+		Delete(&category).
+		RecordNotFound() {
 		c.JSON(
 			http.StatusNotFound,
 			gin.H{
@@ -155,24 +149,4 @@ func deleteCategory(c *gin.Context) {
 		},
 	)
 
-}
-
-func abortIfCategoryNotExists(c *gin.Context) {
-	var category Category
-	userId := ParseUserIdFromToken(c)
-	existingCategory := db.Where(
-		&Category{
-			UserID: userId,
-		},
-	).First(&category)
-	if existingCategory == nil {
-		c.JSON(
-			http.StatusNotFound,
-			gin.H{
-				"status":  http.StatusNotFound,
-				"message": "Category does not exist.",
-			},
-		)
-		c.Abort()
-	}
 }

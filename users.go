@@ -17,11 +17,13 @@ const (
 
 type (
 	User struct {
-		ID        uint   `json:"id" gorm:"primary_key"`
-		Email     string `json:"email" gorm:"size:100; unique; not null" form:"email" binding:"required"`
-		Password  string `json:"password" gorm:"size:255; not null" form:"password" binding:"required"`
-		Name      string `json:"name" gorm:"size:255; not null" binding:"required"`
-		RoleAdmin bool   `json:"admin"`
+		ID         uint   `json:"id" gorm:"primary_key"`
+		Email      string `json:"email" gorm:"size:100; unique; not null" form:"email" binding:"required"`
+		Password   string `json:"password" gorm:"size:255; not null" form:"password" binding:"required"`
+		Name       string `json:"name" gorm:"size:255; not null"`
+		RoleAdmin  bool   `json:"admin"`
+		Categories Categories
+		Words      Words
 	}
 
 	Users []User
@@ -53,9 +55,7 @@ func (u *User) BeforeCreate(scope *gorm.Scope) error {
 
 func fetchAllUser(c *gin.Context) {
 	var users Users
-
 	db.Find(&users)
-
 	c.JSON(
 		http.StatusOK,
 		gin.H{
@@ -63,13 +63,11 @@ func fetchAllUser(c *gin.Context) {
 			"data":   users,
 		},
 	)
-
 }
 
 func logInUser(c *gin.Context) {
 	var user User
-
-	if err = c.BindQuery(&user); err != nil {
+	if err := c.ShouldBindQuery(&user); err != nil {
 		PanicOnErr(err)
 		c.JSON(
 			http.StatusBadRequest,
@@ -80,7 +78,6 @@ func logInUser(c *gin.Context) {
 		)
 		return
 	}
-
 	password := user.Password
 
 	if db.Where("email = ?", user.Email).First(&user).RecordNotFound() {
@@ -94,7 +91,7 @@ func logInUser(c *gin.Context) {
 		return
 	}
 
-	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{
@@ -109,7 +106,6 @@ func logInUser(c *gin.Context) {
 	token, err := createJwtToken(&user)
 	PanicOnErr(err)
 	c.Header("Authorization", token)
-
 	c.JSON(
 		http.StatusOK,
 		gin.H{
@@ -117,14 +113,11 @@ func logInUser(c *gin.Context) {
 			"data":   user,
 		},
 	)
-
 }
 
 func registerUser(c *gin.Context) {
-
 	var user User
-
-	if err = c.ShouldBindJSON(&user); err != nil {
+	if err := c.ShouldBindJSON(&user); err != nil {
 		PanicOnErr(err)
 		c.JSON(
 			http.StatusBadRequest,
@@ -136,7 +129,7 @@ func registerUser(c *gin.Context) {
 		return
 	}
 
-	if err = db.Create(&user).Error; err != nil {
+	if err := db.Create(&user).Error; err != nil {
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{
@@ -150,7 +143,6 @@ func registerUser(c *gin.Context) {
 	token, err := createJwtToken(&user)
 	PanicOnErr(err)
 	c.Header("Authorization", token)
-
 	c.JSON(
 		http.StatusCreated,
 		gin.H{
@@ -167,15 +159,9 @@ func registerUser(c *gin.Context) {
 }
 
 func logOutUser(c *gin.Context) {
-
+	var user User
 	c.Header("Authorization", "")
-
-	user := User{}
-	if userId, exists := c.Get("userId"); exists {
-		user.ID = userId.(uint)
-	}
-
-	if db.First(&user, user.ID).RecordNotFound() {
+	if db.First(&user, getUserId(c)).RecordNotFound() {
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{
@@ -193,11 +179,9 @@ func logOutUser(c *gin.Context) {
 			"data":   user,
 		},
 	)
-
 }
 
 func createJwtToken(u *User) (string, error) {
-
 	claims := userClaims{
 		u.ID,
 		u.RoleAdmin,
@@ -205,16 +189,12 @@ func createJwtToken(u *User) (string, error) {
 			ExpiresAt: time.Now().Add(token_time_delay).Unix(),
 		},
 	}
-
 	rawToken := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	return rawToken.SignedString([]byte(secretKey))
-
 }
 
 func authorized(c *gin.Context) {
-
 	tokenString := c.GetHeader("Authorization")
-
 	token, _ := jwt.ParseWithClaims(
 		tokenString,
 		&userClaims{},
@@ -222,8 +202,7 @@ func authorized(c *gin.Context) {
 			return []byte(secretKey), nil
 		},
 	)
-
-	if !token.Valid {
+	if token == nil || !token.Valid {
 		c.JSON(
 			http.StatusUnauthorized,
 			gin.H{
@@ -235,62 +214,21 @@ func authorized(c *gin.Context) {
 	} else {
 		claims := token.Claims.(*userClaims)
 		c.Set("userId", claims.UserId)
+		c.Set("RoleAdmin", claims.RoleAdmin)
 	}
 
 }
 
 func checkAdmin(c *gin.Context) {
-
-	tokenString := c.GetHeader("Authorization")
-
-	token, ok := jwt.ParseWithClaims(
-		tokenString,
-		&userClaims{},
-		func(token *jwt.Token) (interface{}, error) {
-			return []byte(secretKey), nil
-		},
-	)
-
-	if ok != nil || !token.Valid {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"status":  http.StatusUnauthorized,
-				"message": "Invalid token",
-			},
-		)
+	result := c.GetBool("RoleAdmin")
+	if !result {
 		c.Abort()
 	}
-
-	claims := token.Claims.(*userClaims)
-	if claims.RoleAdmin {
-		return
-	}
-
 }
 
-func ParseUserIdFromToken(c *gin.Context) uint {
-	tokenString := c.GetHeader("Authorization")
-
-	token, ok := jwt.ParseWithClaims(
-		tokenString,
-		&userClaims{},
-		func(token *jwt.Token) (interface{}, error) {
-			return []byte(secretKey), nil
-		},
-	)
-
-	if ok != nil || !token.Valid {
-		c.JSON(
-			http.StatusUnauthorized,
-			gin.H{
-				"status":  http.StatusUnauthorized,
-				"message": "Invalid token",
-			},
-		)
-		c.Abort()
+func getUserId(c *gin.Context) (userID uint) {
+	if val, ok := c.Get("userId"); ok && val != nil {
+		userID, _ = val.(uint)
 	}
-
-	claims := token.Claims.(*userClaims)
-	return claims.UserId
+	return
 }

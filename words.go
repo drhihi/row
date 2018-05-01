@@ -4,18 +4,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 	"net/http"
-	"time"
 	"strconv"
+	"time"
 )
 
 type (
 	Word struct {
 		ID          uint       `json:"id" gorm:"primary_key"`
-		Word        string     `json:"word" gorm:"size:255; unique; not null" binding:"required"`
-		Translation string     `json:"translation" gorm:"size:255; unique; not null" binding:"required"`
-		CategoryID  uint       `json:"category_id" gorm:"not null" binding:"required"`
-		UserID      uint       `json:"user_id" gorm:"not null" binding:"required"`
+		Word        string     `json:"word" gorm:"size:255; not null"`
+		Translation string     `json:"translation" gorm:"size:255; not null"`
 		DueDate     *time.Time `json:"due_date"`
+		UserID      uint       `gorm:"index"`
+		CategoryID  uint       `gorm:"index"`
 	}
 
 	Words []Word
@@ -31,29 +31,27 @@ func (w *Word) BeforeCreate(scope *gorm.Scope) error {
 }
 
 func fetchWords(c *gin.Context) {
-
-	idCategory := c.Query("id_category")
-	id, ok := strconv.Atoi(idCategory)
-	if ok != nil || len(idCategory) == 0 {
-		c.JSON(
-			http.StatusBadRequest,
-			gin.H{
-				"status":  http.StatusBadRequest,
-				"message": "Incorrect URL - category id not specified.",
-			},
-		)
-		return
-	}
-
 	var words Words
-	userId := ParseUserIdFromToken(c)
-
-	db.Where(
-		&Word{
-			CategoryID: uint(id),
-			UserID:     userId,
-		},
-	).Find(&words)
+	var all bool
+	var categoryId uint
+	var db_tmp *gorm.DB
+	if _, ok := c.GetQuery("all"); ok {
+		all = true
+	}
+	if category_id, ok := c.GetQuery("category_id"); ok {
+		if id, err := strconv.Atoi(category_id); err != nil {
+			categoryId = uint(id)
+		}
+	}
+	if !all {
+		//db_tmp = db.Where("DueDate < ", time.Now)
+		db_tmp = db
+	} else {
+		db_tmp = db
+	}
+	db_tmp.Model(&User{ID: getUserId(c)}).
+		Model(&Category{ID: categoryId}).
+		Find(&words)
 
 	c.JSON(
 		http.StatusOK,
@@ -62,14 +60,11 @@ func fetchWords(c *gin.Context) {
 			"data":   words,
 		},
 	)
-
 }
 
 func addWord(c *gin.Context) {
-
 	var word Word
-
-	if err = c.ShouldBindJSON(&word); err != nil {
+	if err := c.ShouldBindJSON(&word); err != nil {
 		PanicOnErr(err)
 		c.JSON(
 			http.StatusBadRequest,
@@ -80,8 +75,23 @@ func addWord(c *gin.Context) {
 		)
 		return
 	}
-
-	if err = db.Create(&word).Error; err != nil {
+	word.CategoryID = 0
+	if value, ok := c.GetQuery("category_id"); ok {
+		if categoryId, err := strconv.Atoi(value); err == nil {
+			category_id := uint(categoryId)
+			if !db.Model(&User{ID: getUserId(c)}).
+				First(&Category{}, category_id).
+				RecordNotFound() {
+				word.CategoryID = category_id
+			}
+		}
+	}
+	if err := db.
+		Model(&User{ID: getUserId(c)}).
+		Association("Words").
+		Append(&word).
+		Error; err != nil {
+		printLog(err)
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{
@@ -103,8 +113,7 @@ func addWord(c *gin.Context) {
 
 func patchWord(c *gin.Context) {
 	var word Word
-
-	if err = c.BindQuery(&word); err != nil {
+	if err := c.ShouldBindJSON(&word); err != nil {
 		PanicOnErr(err)
 		c.JSON(
 			http.StatusBadRequest,
@@ -115,15 +124,15 @@ func patchWord(c *gin.Context) {
 		)
 		return
 	}
-
-	abortIfWordNotExists(c)
-
-	if db.Model(&word).Updates(map[string]interface{}{"word": word.Word, "translation": word.Translation}).RecordNotFound() {
+	if db.Model(&User{ID: getUserId(c)}).
+		Model(&word).
+		Updates(map[string]interface{}{"word": word.Word, "translation": word.Translation}).
+		RecordNotFound() {
 		c.JSON(
 			http.StatusNotFound,
 			gin.H{
 				"status":  http.StatusNotFound,
-				"message": "Update failed",
+				"message": "no word found!",
 			},
 		)
 		return
@@ -141,8 +150,7 @@ func patchWord(c *gin.Context) {
 
 func deleteWord(c *gin.Context) {
 	var word Word
-
-	if err = c.BindQuery(&word); err != nil {
+	if err := c.ShouldBindJSON(&word); err != nil {
 		PanicOnErr(err)
 		c.JSON(
 			http.StatusBadRequest,
@@ -153,15 +161,15 @@ func deleteWord(c *gin.Context) {
 		)
 		return
 	}
-
-	abortIfWordNotExists(c)
-
-	if db.Delete(&word).RecordNotFound() {
+	if db.
+		Model(&User{ID: getUserId(c)}).
+		Delete(&word).
+		RecordNotFound() {
 		c.JSON(
 			http.StatusNotFound,
 			gin.H{
 				"status":  http.StatusNotFound,
-				"message": "no category found!",
+				"message": "no word found!",
 			},
 		)
 		return
@@ -175,24 +183,4 @@ func deleteWord(c *gin.Context) {
 		},
 	)
 
-}
-
-func abortIfWordNotExists(c *gin.Context) {
-	var word Word
-	userId := ParseUserIdFromToken(c)
-	existingWord := db.Where(
-		&Word{
-			UserID: userId,
-		},
-	).First(&word)
-	if existingWord == nil {
-		c.JSON(
-			http.StatusNotFound,
-			gin.H{
-				"status":  http.StatusNotFound,
-				"message": "Word does not exist.",
-			},
-		)
-		c.Abort()
-	}
 }
