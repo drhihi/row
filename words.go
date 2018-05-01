@@ -70,7 +70,7 @@ func addWord(c *gin.Context) {
 			http.StatusBadRequest,
 			gin.H{
 				"status":  http.StatusBadRequest,
-				"message": "the data is incorrect",
+				"message": "the data is incorrect: " + err.Error(),
 			},
 		)
 		return
